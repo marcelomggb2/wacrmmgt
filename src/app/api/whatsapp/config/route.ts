@@ -185,7 +185,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin } = body
+    let { phone_number_id, waba_id, access_token, verify_token, pin } = body
+
+    // Sanitize access_token and verify_token immediately to remove invisible/non-ASCII characters
+    // like character 8232 (\u2028: Line Separator) introduce by copy-paste.
+    if (access_token && typeof access_token === 'string') {
+      access_token = access_token.replace(/[\s\u2028\u2029\u200B-\u200D\uFEFF]/g, '').trim()
+    }
+    if (verify_token && typeof verify_token === 'string') {
+      verify_token = verify_token.replace(/[\s\u2028\u2029\u200B-\u200D\uFEFF]/g, '').trim()
+    }
 
     if (!access_token || !phone_number_id) {
       return NextResponse.json(

@@ -34,14 +34,22 @@ const GCM_IV_LENGTH = 12
 const CBC_IV_LENGTH = 16
 const AUTH_TAG_LENGTH = 16
 
+export function sanitizeToken(token: string): string {
+  if (!token) return token
+  // Remove all whitespaces, line breaks (\u2028, \u2029, \r, \n, tabs), and zero-width characters
+  // that can be accidentally introduced via copy-paste.
+  return token.replace(/[\s\u2028\u2029\u200B-\u200D\uFEFF]/g, '').trim()
+}
+
 export function encrypt(text: string): string {
+  const sanitized = sanitizeToken(text)
   const iv = crypto.randomBytes(GCM_IV_LENGTH)
   const cipher = crypto.createCipheriv(
     'aes-256-gcm',
     Buffer.from(ENCRYPTION_KEY, 'hex'),
     iv,
   )
-  let encrypted = cipher.update(text, 'utf8', 'hex')
+  let encrypted = cipher.update(sanitized, 'utf8', 'hex')
   encrypted += cipher.final('hex')
   const authTag = cipher.getAuthTag()
   return `${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`
@@ -73,7 +81,7 @@ export function decrypt(encryptedText: string): string {
     decipher.setAuthTag(authTag)
     let decrypted = decipher.update(ctHex, 'hex', 'utf8')
     decrypted += decipher.final('utf8')
-    return decrypted
+    return sanitizeToken(decrypted)
   }
 
   if (parts.length === 2) {
@@ -92,7 +100,7 @@ export function decrypt(encryptedText: string): string {
     )
     let decrypted = decipher.update(ctHex, 'hex', 'utf8')
     decrypted += decipher.final('utf8')
-    return decrypted
+    return sanitizeToken(decrypted)
   }
 
   throw new Error(
