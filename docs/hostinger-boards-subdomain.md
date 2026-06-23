@@ -1,47 +1,28 @@
-# Hostinger: publicar o sistema da porta 8000 em subdominio
+# Boards no Hostinger Node (sem VPS)
 
-Este repo agora inclui o sistema externo em `external/trelloflow`.
+Este projeto ja inclui o app de boards em `public/boards`.
 
-## 1) DNS (painel Hostinger)
+## Modo recomendado (Hostinger Node)
 
-Crie um registro para o subdominio:
+Nao precisa subdominio separado, Nginx ou VPS.
 
-- Tipo: `A`
-- Host: `boards`
-- Valor: `IP da VPS`
+1. Faça deploy normal do CRM na Hostinger Node.
+2. Nao configure `NEXT_PUBLIC_BOARDS_URL`.
+3. Abra `Boards` no menu do CRM.
 
-Exemplo final: `boards.seudominio.com`.
+O sistema carrega de dentro do proprio app, usando `/boards/index.html`.
 
-## 2) Deploy automatico via script
+## Quando usar URL externa
 
-No seu computador local (na raiz do repo):
+Use `NEXT_PUBLIC_BOARDS_URL` somente se quiser apontar para outro host.
 
-```bash
-chmod +x scripts/deploy-trelloflow-subdomain.sh
-scripts/deploy-trelloflow-subdomain.sh \
-  --host SEU_IP_VPS \
-  --user root \
-  --domain boards.seudominio.com
-```
-
-O script:
-- publica os arquivos em `/var/www/boards`
-- cria config do Nginx
-- recarrega Nginx
-- tenta emitir SSL via Certbot
-
-## 3) Integrar no CRM
-
-No deploy do CRM (Hostinger Node):
+Exemplo:
 
 ```env
-NEXT_PUBLIC_BOARDS_URL=https://boards.seudominio.com
+NEXT_PUBLIC_BOARDS_URL=https://boards.example.com
 ```
 
-Depois: redeploy/restart da aplicacao.
+## Validacao
 
-## 4) Validacao
-
-- Acesse `https://boards.seudominio.com` e confirme o frontend.
-- Acesse no CRM: pagina `Boards`.
-- Se iframe bloquear, ajuste cabecalhos no subdominio para permitir frame do dominio do CRM.
+- Abra `https://seu-dominio.com/boards/index.html` (deve carregar o TrelloFlow).
+- Abra `https://seu-dominio.com/boards` dentro do CRM (menu lateral).

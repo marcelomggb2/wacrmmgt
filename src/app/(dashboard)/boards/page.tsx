@@ -5,7 +5,7 @@ import { ExternalLink, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const DEFAULT_BOARDS_URL = "http://localhost:8000";
+const DEFAULT_BOARDS_URL = "/boards/index.html";
 
 export default function BoardsPage() {
   const boardsUrl =
@@ -24,7 +24,7 @@ export default function BoardsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Boards</h1>
           <p className="text-sm text-muted-foreground">
-            Integracao com o sistema externo de quadros.
+            Quadro de tarefas embutido no proprio app (Hostinger Node friendly).
           </p>
         </div>
         <Button asChild variant="outline" className="gap-2">
@@ -41,8 +41,8 @@ export default function BoardsPage() {
           <AlertTitle>URL local detectada</AlertTitle>
           <AlertDescription>
             O CRM esta em ambiente remoto, mas o Boards aponta para localhost.
-            Defina NEXT_PUBLIC_BOARDS_URL com uma URL publica para todos os
-            usuarios acessarem.
+            Remova NEXT_PUBLIC_BOARDS_URL para usar a versao interna
+            (/boards/index.html) ou troque para uma URL publica.
           </AlertDescription>
         </Alert>
       )}
