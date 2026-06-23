@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { ExternalLink, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_BOARDS_URL = "/boards/index.html";
 
@@ -27,12 +28,10 @@ export default function BoardsPage() {
             Quadro de tarefas embutido no proprio app (Hostinger Node friendly).
           </p>
         </div>
-        <Button asChild variant="outline" className="gap-2">
-          <a href={boardsUrl} target="_blank" rel="noreferrer">
-            Abrir em nova aba
-            <ExternalLink className="size-4" />
-          </a>
-        </Button>
+        <a href={boardsUrl} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+          Abrir em nova aba
+          <ExternalLink className="size-4" />
+        </a>
       </div>
 
       {localhostWarning && (
