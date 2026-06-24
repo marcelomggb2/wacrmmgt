@@ -8,6 +8,7 @@ import {
   type MediaKind,
 } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
+import { resolveWhatsAppConfigForAccount } from '@/lib/whatsapp/config-resolver'
 import {
   sanitizePhoneForMeta,
   isValidE164,
@@ -77,11 +78,11 @@ export async function engineSendText(
     throw new Error(`contact phone invalid: ${contact.phone}`)
   }
 
-  const { data: config, error: configErr } = await db
-    .from('whatsapp_config')
-    .select('*')
-    .eq('account_id', args.accountId)
-    .single()
+  const { config, error: configErr } = await resolveWhatsAppConfigForAccount(
+    db,
+    args.accountId,
+    { conversationId: args.conversationId },
+  )
   if (configErr || !config) {
     throw new Error('WhatsApp not configured for this account')
   }
@@ -138,6 +139,7 @@ export async function engineSendText(
       last_message_text: args.text,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      whatsapp_config_id: config.id,
     })
     .eq('id', args.conversationId)
 
@@ -186,11 +188,11 @@ export async function engineSendMedia(
     throw new Error(`contact phone invalid: ${contact.phone}`)
   }
 
-  const { data: config, error: configErr } = await db
-    .from('whatsapp_config')
-    .select('*')
-    .eq('account_id', args.accountId)
-    .single()
+  const { config, error: configErr } = await resolveWhatsAppConfigForAccount(
+    db,
+    args.accountId,
+    { conversationId: args.conversationId },
+  )
   if (configErr || !config) {
     throw new Error('WhatsApp not configured for this account')
   }
@@ -255,6 +257,7 @@ export async function engineSendMedia(
       last_message_text: preview,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      whatsapp_config_id: config.id,
     })
     .eq('id', args.conversationId)
 
@@ -338,11 +341,11 @@ async function sendInteractiveViaMeta(
     throw new Error(`contact phone invalid: ${contact.phone}`)
   }
 
-  const { data: config, error: configErr } = await db
-    .from('whatsapp_config')
-    .select('*')
-    .eq('account_id', input.accountId)
-    .single()
+  const { config, error: configErr } = await resolveWhatsAppConfigForAccount(
+    db,
+    input.accountId,
+    { conversationId: input.conversationId },
+  )
   if (configErr || !config) {
     throw new Error('WhatsApp not configured for this account')
   }
@@ -427,6 +430,7 @@ async function sendInteractiveViaMeta(
       last_message_text: input.bodyText,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      whatsapp_config_id: config.id,
     })
     .eq('id', input.conversationId)
 
