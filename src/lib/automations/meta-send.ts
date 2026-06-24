@@ -1,5 +1,6 @@
 import { sendTextMessage, sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
+import { resolveWhatsAppConfigForAccount } from '@/lib/whatsapp/config-resolver'
 import {
   sanitizePhoneForMeta,
   isValidE164,
@@ -83,11 +84,11 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
     throw new Error(`contact phone invalid: ${contact.phone}`)
   }
 
-  const { data: config, error: configErr } = await db
-    .from('whatsapp_config')
-    .select('*')
-    .eq('account_id', input.accountId)
-    .single()
+  const { config, error: configErr } = await resolveWhatsAppConfigForAccount(
+    db,
+    input.accountId,
+    { conversationId: input.conversationId },
+  )
   if (configErr || !config) {
     throw new Error('WhatsApp not configured for this account')
   }
@@ -169,6 +170,7 @@ async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: str
         input.kind === 'template' ? `[template:${input.templateName}]` : input.text,
       last_message_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      whatsapp_config_id: config.id,
     })
     .eq('id', input.conversationId)
 
