@@ -60,7 +60,7 @@ function supabaseAdmin() {
  *   { connected: false, reason: 'token_corrupted',  message: '...', needs_reset: true }
  *   { connected: false, reason: 'meta_api_error',   message: '...' }
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient()
 
@@ -85,11 +85,17 @@ export async function GET() {
       )
     }
 
-    const { data: config, error: configError } = await supabase
+    // GET accepts an optional ?id=<config_id> to test a specific channel.
+    // Without it, we test the first connected config for the account.
+    const url = new URL(request.url)
+    const configId = url.searchParams.get('id')
+
+    let query = supabase
       .from('whatsapp_config')
       .select('phone_number_id, access_token, status')
       .eq('account_id', accountId)
-      .maybeSingle()
+    if (configId) query = query.eq('id', configId) as typeof query
+    const { data: config, error: configError } = await query.maybeSingle()
 
     if (configError) {
       console.error('Error fetching whatsapp_config:', configError)
@@ -185,7 +191,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    let { phone_number_id, waba_id, access_token, verify_token, pin } = body
+    let { phone_number_id, waba_id, access_token, verify_token, pin, label } = body
 
     // Sanitize access_token and verify_token immediately to remove invisible/non-ASCII characters
     // like character 8232 (\u2028: Line Separator) introduce by copy-paste.
@@ -278,13 +284,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Look up any pre-existing row for this account so we know whether
-    // this number is already registered with Meta — if so we can skip
-    // /register when the user didn't provide a PIN this time around.
+    // Look up any pre-existing row by phone_number_id (not account_id)
+    // so that each number is treated as its own channel. Multiple rows
+    // per account are now allowed since migration 024.
     const { data: existing } = await supabase
       .from('whatsapp_config')
       .select('id, registered_at, phone_number_id')
       .eq('account_id', accountId)
+      .eq('phone_number_id', phone_number_id)
       .maybeSingle()
 
     const sameNumber =
@@ -372,6 +379,7 @@ export async function POST(request: Request) {
       registered_at: registrationError ? null : registeredAt,
       subscribed_apps_at: subscribedAppsAt ?? null,
       last_registration_error: registrationError,
+      label: label || null,
       updated_at: new Date().toISOString(),
     }
 
@@ -379,7 +387,7 @@ export async function POST(request: Request) {
       const { error: updateError } = await supabase
         .from('whatsapp_config')
         .update(baseRow)
-        .eq('account_id', accountId)
+        .eq('id', existing.id)
 
       if (updateError) {
         console.error('Error updating whatsapp_config:', updateError)
@@ -441,13 +449,13 @@ export async function POST(request: Request) {
 }
 
 /**
- * DELETE /api/whatsapp/config
+ * DELETE /api/whatsapp/config?id=<config_id>
  *
- * Removes the authenticated user's WhatsApp configuration row.
- * Used by the "Reset Configuration" button to recover from a corrupted
- * encrypted token (mismatched ENCRYPTION_KEY across environments).
+ * Removes a specific WhatsApp channel configuration by its id.
+ * Falls back to deleting all configs for the account when no id
+ * is provided (backward-compatible reset behaviour).
  */
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     const supabase = await createClient()
 
@@ -468,10 +476,15 @@ export async function DELETE() {
       )
     }
 
-    const { error: deleteError } = await supabase
+    const url = new URL(request.url)
+    const configId = url.searchParams.get('id')
+
+    let deleteQuery = supabase
       .from('whatsapp_config')
       .delete()
       .eq('account_id', accountId)
+    if (configId) deleteQuery = deleteQuery.eq('id', configId) as typeof deleteQuery
+    const { error: deleteError } = await deleteQuery
 
     if (deleteError) {
       console.error('Error deleting whatsapp_config:', deleteError)

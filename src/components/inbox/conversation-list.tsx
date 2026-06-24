@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus } from "@/types";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, Hash } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface ChannelOption {
+  id: string;
+  label: string | null;
+  phone_number_id: string;
+}
 
 interface ConversationListProps {
   activeConversationId: string | null;
@@ -56,6 +62,9 @@ export function ConversationList({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [loading, setLoading] = useState(true);
+  /** null = all channels; string = filter by whatsapp_config_id */
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [channels, setChannels] = useState<ChannelOption[]>([]);
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -73,6 +82,14 @@ export function ConversationList({
   useEffect(() => {
     onConversationsLoadedRef.current = onConversationsLoaded;
   });
+
+  // Fetch available channels for the selector. Only shown when >1 channel.
+  useEffect(() => {
+    fetch("/api/whatsapp/channels")
+      .then((r) => r.json())
+      .then((d) => setChannels(d.channels ?? []))
+      .catch(() => {/* non-fatal */});
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -112,6 +129,11 @@ export function ConversationList({
 
   const filtered = useMemo(() => {
     let result = conversations;
+
+    // Channel filter (only applied when >1 channel exists and user selected one)
+    if (activeChannelId) {
+      result = result.filter((c) => c.whatsapp_config_id === activeChannelId);
+    }
 
     if (filter === "unread") {
       result = result.filter((c) => c.unread_count > 0);

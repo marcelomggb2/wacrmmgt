@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SettingsPanelHead } from './settings-panel-head';
+import { ArrowLeft } from 'lucide-react';
 import {
   Accordion,
   AccordionItem,
@@ -35,7 +36,21 @@ const MASKED_TOKEN = '••••••••••••••••';
 type ConnectionStatus = 'connected' | 'disconnected' | 'unknown';
 type ResetReason = 'token_corrupted' | 'meta_api_error' | null;
 
-export function WhatsAppConfig() {
+interface WhatsAppConfigProps {
+  /**
+   * When provided, the form edits that specific channel row.
+   * Omit (or pass undefined) to create a new channel.
+   */
+  configId?: string;
+  /**
+   * Called after a successful save or when the user clicks "Back".
+   * If provided, a Back button is shown so users can return to the
+   * channels list.
+   */
+  onDone?: () => void;
+}
+
+export function WhatsAppConfig({ configId, onDone }: WhatsAppConfigProps = {}) {
   // After multi-user, whatsapp_config is one-row-per-account, not
   // one-row-per-user. We pull `accountId` straight off the auth
   // context and key every read off it — so a teammate who just
@@ -59,6 +74,7 @@ export function WhatsAppConfig() {
   const [accessToken, setAccessToken] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
   const [pin, setPin] = useState('');
+  const [label, setLabel] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
 
   // True once /register has succeeded on Meta's side (timestamp set
@@ -89,17 +105,17 @@ export function WhatsAppConfig() {
     setLoading(true);
     const supabaseClientInstance = createClient();
     try {
-      // Load form values from Supabase (shows what's in DB).
-      // Switched from `user_id` (which would only match the row's
-      // original author) to `account_id` so every member of the
-      // account sees the same saved configuration. UNIQUE(account_id)
-      // on the table guarantees the .maybeSingle() return type
-      // remains accurate.
-      const { data, error } = await supabaseClientInstance
+      // When editing a specific channel (configId prop), fetch by id.
+      // Otherwise fall back to the first row for the account (legacy
+      // single-channel behaviour).
+      let query = supabaseClientInstance
         .from('whatsapp_config')
         .select('*')
-        .eq('account_id', acctId)
-        .maybeSingle();
+        .eq('account_id', acctId);
+      if (configId) {
+        query = query.eq('id', configId) as typeof query;
+      }
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         console.error('Failed to load config row:', error);
@@ -109,6 +125,7 @@ export function WhatsAppConfig() {
         setConfig(data);
         setPhoneNumberId(data.phone_number_id || '');
         setWabaId(data.waba_id || '');
+        setLabel(data.label || '');
         setAccessToken(MASKED_TOKEN);
         setVerifyToken('');
         setPin('');
@@ -117,6 +134,7 @@ export function WhatsAppConfig() {
         setConfig(null);
         setPhoneNumberId('');
         setWabaId('');
+        setLabel('');
         setAccessToken('');
         setVerifyToken('');
         setPin('');
@@ -128,7 +146,10 @@ export function WhatsAppConfig() {
       // Then verify health via the API (decrypts token + pings Meta)
       if (data) {
         try {
-          const res = await fetch('/api/whatsapp/config', { method: 'GET' });
+          const healthUrl = configId
+            ? `/api/whatsapp/config?id=${configId}`
+            : '/api/whatsapp/config';
+          const res = await fetch(healthUrl, { method: 'GET' });
           const payload = await res.json();
 
           if (payload.connected) {
@@ -195,6 +216,7 @@ export function WhatsAppConfig() {
         phone_number_id: phoneNumberId.trim(),
         waba_id: wabaId.trim() || null,
         verify_token: verifyToken.trim() || null,
+        label: label.trim() || null,
         // Optional — only sent when the user filled it in. The server
         // requires it on first save or when changing numbers; for a
         // simple token rotation, leaving it blank skips re-register.
@@ -261,6 +283,7 @@ export function WhatsAppConfig() {
       }
 
       if (accountId) await fetchConfig(accountId);
+      onDone?.();
     } catch (err) {
       console.error('Save error:', err);
       toast.error('Failed to save configuration');
@@ -366,8 +389,13 @@ export function WhatsAppConfig() {
   if (loading) {
     return (
       <section className="animate-in fade-in-50 duration-200">
+        {onDone && (
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-muted-foreground" onClick={onDone}>
+            <ArrowLeft className="size-4 mr-1" /> Back to channels
+          </Button>
+        )}
         <SettingsPanelHead
-          title="WhatsApp connection"
+          title={configId ? 'Edit channel' : 'New WhatsApp channel'}
           description="Connect your Meta WhatsApp Business API. Credentials, webhook, and setup steps all live here."
         />
         <div className="flex items-center justify-center py-12">
@@ -381,8 +409,13 @@ export function WhatsAppConfig() {
 
   return (
     <section className="animate-in fade-in-50 duration-200">
+      {onDone && (
+        <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-muted-foreground" onClick={onDone}>
+          <ArrowLeft className="size-4 mr-1" /> Back to channels
+        </Button>
+      )}
       <SettingsPanelHead
-        title="WhatsApp connection"
+        title={configId ? 'Edit channel' : 'New WhatsApp channel'}
         description="Connect your Meta WhatsApp Business API. Credentials, webhook, and setup steps all live here."
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -560,6 +593,22 @@ export function WhatsAppConfig() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">
+                Channel label
+                <span className="ml-1 text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                placeholder="e.g. Vendas Brasil, Suporte, Comercial"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+              />
+              <p className="text-xs text-muted-foreground">
+                A friendly name shown in the inbox channel selector.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label className="text-muted-foreground">Phone Number ID</Label>
               <Input

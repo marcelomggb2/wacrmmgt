@@ -156,6 +156,12 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   contact?: Contact;
+  /**
+   * Which WhatsApp channel this conversation arrived on.
+   * Added by migration 024. NULL for conversations created
+   * before multi-channel was enabled.
+   */
+  whatsapp_config_id?: string | null;
 }
 
 export type SenderType = 'customer' | 'agent' | 'bot';
@@ -208,12 +214,19 @@ export interface MessageReaction {
 export interface WhatsAppConfig {
   id: string;
   user_id: string;
+  /** Tenancy key — NOT NULL since migration 017. */
+  account_id: string;
   phone_number_id: string;
   waba_id?: string;
   access_token: string;
   verify_token?: string;
   status: 'connected' | 'disconnected';
   connected_at?: string;
+  /**
+   * Human-readable name for this channel, e.g. "Vendas BR".
+   * Added by migration 024. Defaults to phone_number_id when null.
+   */
+  label?: string;
   /**
    * Set when POST /{phone_number_id}/register last succeeded. NULL
    * means the number was saved but never actually subscribed for
