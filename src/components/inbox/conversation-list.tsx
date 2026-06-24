@@ -13,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ChannelOption {
@@ -29,7 +28,7 @@ interface ConversationListProps {
   onConversationsLoaded: (conversations: Conversation[]) => void;
   /**
    * Increment to force the fetch effect below to refire. The parent
-   * bumps this on realtime reconnect / tab visibility → visible so the
+   * bumps this on realtime reconnect / tab visibility -> visible so the
    * list catches up on any events sent while the WS was disconnected
    * or the tab was throttled. Optional so existing callers keep working.
    */
@@ -69,14 +68,14 @@ export function ConversationList({
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
   // depended on `onConversationsLoaded`, which depends on the parent's
-  // `deepLinkConvId` — so every URL change (including one the parent
+  // `deepLinkConvId` - so every URL change (including one the parent
   // triggered via router.replace after a click) caused a fresh
   // conversations fetch. That extra refetch was the trigger for the
   // deep-link auto-select running a second time and wiping the active
   // thread's messages.
   // Mutation lives in an effect (not render) per React 19's refs rule;
   // the fetch runs once on mount so it's fine to read the slightly
-  // older value — the very next render updates the ref for any
+  // older value - the very next render updates the ref for any
   // subsequent async completion.
   const onConversationsLoadedRef = useRef(onConversationsLoaded);
   useEffect(() => {
@@ -88,7 +87,9 @@ export function ConversationList({
     fetch("/api/whatsapp/channels")
       .then((r) => r.json())
       .then((d) => setChannels(d.channels ?? []))
-      .catch(() => {/* non-fatal */});
+      .catch(() => {
+        /* non-fatal */
+      });
   }, []);
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export function ConversationList({
       if (cancelled) return;
 
       if (error) {
-        // Supabase errors have non-enumerable properties — log fields explicitly
+        // Supabase errors have non-enumerable properties - log fields explicitly
         console.error("Failed to fetch conversations:", {
           message: error.message,
           details: error.details,
@@ -123,9 +124,12 @@ export function ConversationList({
       cancelled = true;
     };
     // `resyncToken` is included so the parent can force a refetch when
-    // the realtime channel reconnects or the tab regains focus — catches
+    // the realtime channel reconnects or the tab regains focus - catches
     // up on any events sent while the WS was disconnected or throttled.
   }, [resyncToken]);
+
+  const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
+  const activeChannel = channels.find((channel) => channel.id === activeChannelId);
 
   const filtered = useMemo(() => {
     let result = conversations;
@@ -152,7 +156,7 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search]);
+  }, [activeChannelId, conversations, filter, search]);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,8 +171,6 @@ export function ConversationList({
     },
     [onSelect]
   );
-
-  const activeFilter = FILTER_OPTIONS.find((o) => o.value === filter);
 
   return (
     // w-full on mobile so the list occupies the whole viewport when it's
@@ -187,38 +189,84 @@ export function ConversationList({
           />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex h-7 items-center justify-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
               {activeFilter?.label ?? "All"}
               <ChevronDown className="h-3 w-3" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="border-border bg-popover"
-          >
-            {FILTER_OPTIONS.map((opt) => (
-              <DropdownMenuItem
-                key={opt.value}
-                onClick={() => setFilter(opt.value)}
-                className={cn(
-                  "text-sm",
-                  filter === opt.value
-                    ? "text-primary"
-                    : "text-popover-foreground"
-                )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="border-border bg-popover"
+            >
+              {FILTER_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setFilter(opt.value)}
+                  className={cn(
+                    "text-sm",
+                    filter === opt.value
+                      ? "text-primary"
+                      : "text-popover-foreground"
+                  )}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {channels.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex h-7 min-w-0 max-w-full items-center justify-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+                <Hash className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {activeChannel?.label || activeChannel?.phone_number_id || "All channels"}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="max-w-64 border-border bg-popover"
               >
-                {opt.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <DropdownMenuItem
+                  onClick={() => setActiveChannelId(null)}
+                  className={cn(
+                    "text-sm",
+                    activeChannelId === null
+                      ? "text-primary"
+                      : "text-popover-foreground"
+                  )}
+                >
+                  All channels
+                </DropdownMenuItem>
+                {channels.map((channel) => (
+                  <DropdownMenuItem
+                    key={channel.id}
+                    onClick={() => setActiveChannelId(channel.id)}
+                    className={cn(
+                      "text-sm",
+                      activeChannelId === channel.id
+                        ? "text-primary"
+                        : "text-popover-foreground"
+                    )}
+                  >
+                    <span className="truncate">
+                      {channel.label || channel.phone_number_id}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {/* Conversation Items.
           `min-h-0` is load-bearing: a flex child defaults to
           min-height:auto, so without it this ScrollArea grows to fit
           every conversation instead of shrinking to the remaining
-          space — the list then overflows and gets clipped by the
+          space - the list then overflows and gets clipped by the
           parent's overflow-hidden with no scrollbar (issue #229). */}
       <ScrollArea className="min-h-0 flex-1">
         {loading ? (
