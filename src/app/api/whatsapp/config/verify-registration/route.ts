@@ -6,29 +6,7 @@ import {
   verifyPhoneNumber,
 } from '@/lib/whatsapp/meta-api'
 
-/**
- * GET /api/whatsapp/config/verify-registration
- *
- * Diagnostic endpoint — confirms the user's saved phone number is
- * actually reachable on Meta's side. Solves the failure mode that
- * surfaced the multi-number bug originally: "UI says Connected but
- * Meta isn't delivering events."
- *
- * Three checks run independently so the UI can show which step
- * passes and which fails:
- *
- *   1. phone_info  — GET /{phone_number_id} succeeds
- *   2. waba_subscription — our app appears in
- *                    GET /{waba_id}/subscribed_apps
- *   3. registered_at — local timestamp set by POST /config when
- *                    /register last succeeded; NULL means the
- *                    number was saved but never actually subscribed
- *
- * Returns 200 in every case so the UI can render diagnostic detail
- * rather than a generic error toast. The combined `live` flag is
- * what the UI badges on.
- */
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -38,9 +16,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // whatsapp_config is one-row-per-account post-017. Resolve the
-  // caller's account_id so a teammate who joined an existing account
-  // sees the same registration state as the admin who set it up.
   const { data: profile } = await supabase
     .from('profiles')
     .select('account_id')
@@ -55,11 +30,30 @@ export async function GET() {
     })
   }
 
-  const { data: config } = await supabase
+  const url = new URL(request.url)
+  const configId = url.searchParams.get('id')
+
+  let configQuery = supabase
     .from('whatsapp_config')
     .select('*')
     .eq('account_id', accountId)
-    .maybeSingle()
+
+  if (configId) {
+    configQuery = configQuery.eq('id', configId) as typeof configQuery
+  } else {
+    configQuery = configQuery.order('created_at', { ascending: true }).limit(1) as typeof configQuery
+  }
+
+  const { data: config, error: configError } = await configQuery.maybeSingle()
+
+  if (configError) {
+    console.error('[verify-registration] config fetch failed:', configError)
+    return NextResponse.json({
+      live: false,
+      checks: { config_exists: false },
+      message: 'Could not load WhatsApp configuration.',
+    })
+  }
 
   if (!config) {
     return NextResponse.json({
@@ -80,7 +74,7 @@ export async function GET() {
         token_decryptable: false,
       },
       message:
-        'Stored access token can\'t be decrypted — likely ENCRYPTION_KEY changed. Re-enter the token to repair.',
+        'Stored access token cannot be decrypted - likely ENCRYPTION_KEY changed. Re-enter the token to repair.',
     })
   }
 
@@ -99,7 +93,6 @@ export async function GET() {
   }
   const errors: string[] = []
 
-  // 1. Phone metadata
   try {
     await verifyPhoneNumber({
       phoneNumberId: config.phone_number_id,
@@ -112,17 +105,12 @@ export async function GET() {
     )
   }
 
-  // 2. WABA subscription — only meaningful if we have a waba_id
   if (config.waba_id) {
     try {
       const subs = await getSubscribedApps({
         wabaId: config.waba_id,
         accessToken,
       })
-      // Meta returns the apps subscribed to this WABA. If the list
-      // is non-empty, OUR app is in there (the access_token we used
-      // belongs to our app — Meta wouldn't return data for an app
-      // the token can't see). Treat any entry as success.
       checks.waba_subscribed_to_app = subs.length > 0
       if (!checks.waba_subscribed_to_app) {
         errors.push(
@@ -136,7 +124,7 @@ export async function GET() {
     }
   } else {
     errors.push(
-      'No WABA ID on file — webhooks can\'t be wired without it. Add it in the form and re-save.',
+      'No WABA ID on file - webhooks cannot be wired without it. Add it in the form and re-save.',
     )
   }
 
