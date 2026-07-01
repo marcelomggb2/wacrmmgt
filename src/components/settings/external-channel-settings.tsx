@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Camera,
+  Copy,
   Loader2,
   Pencil,
   Plus,
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { buildInstagramWebhookUrl } from '@/lib/inbox/instagram-webhook';
 
 type ExternalChannelRow = {
   id: string;
@@ -86,6 +88,12 @@ export function ExternalChannelSettings({
     () => (editing && editing !== 'new' ? editing : null),
     [editing],
   );
+  const currentOrigin =
+    typeof window === 'undefined' ? null : window.location.origin;
+  const instagramWebhookUrl = useMemo(() => {
+    if (provider !== 'instagram' || !currentRow?.id) return '';
+    return buildInstagramWebhookUrl(currentRow.id, currentOrigin);
+  }, [currentOrigin, currentRow?.id, provider]);
 
   const resetForm = useCallback(() => {
     setLabel('');
@@ -275,7 +283,15 @@ export function ExternalChannelSettings({
           )}
 
           <div className="space-y-2">
-            <Label>{currentRow?.has_token ? 'Replace token' : 'Access token'}</Label>
+            <Label>
+              {provider === 'instagram'
+                ? currentRow?.has_token
+                  ? 'Replace page access token'
+                  : 'Page access token'
+                : currentRow?.has_token
+                  ? 'Replace token'
+                  : 'Access token'}
+            </Label>
             <Input
               type="password"
               placeholder={currentRow?.has_token ? 'Leave blank to keep current token' : ''}
@@ -286,19 +302,67 @@ export function ExternalChannelSettings({
 
           <div className="space-y-2">
             <Label>
-              {currentRow?.has_webhook_secret ? 'Replace webhook secret' : 'Webhook secret'}
+              {provider === 'instagram'
+                ? currentRow?.has_webhook_secret
+                  ? 'Replace verify token'
+                  : 'Verify token'
+                : currentRow?.has_webhook_secret
+                  ? 'Replace webhook secret'
+                  : 'Webhook secret'}
             </Label>
             <Input
               type="password"
               placeholder={
                 currentRow?.has_webhook_secret
                   ? 'Leave blank to keep current secret'
-                  : 'Optional'
+                  : provider === 'instagram'
+                    ? 'Create the same token you will paste into Meta Developers'
+                    : 'Optional'
               }
               value={webhookSecret}
               onChange={(e) => setWebhookSecret(e.target.value)}
             />
+            {provider === 'instagram' && (
+              <p className="text-xs text-muted-foreground">
+                Meta sends this value back as <code>hub.verify_token</code> during webhook verification.
+              </p>
+            )}
           </div>
+
+          {provider === 'instagram' && (
+            <div className="space-y-2">
+              <Label>Webhook callback URL</Label>
+              {currentRow ? (
+                <>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={instagramWebhookUrl}
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(instagramWebhookUrl);
+                        toast.success('Webhook URL copied');
+                      }}
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use this exact URL in Meta Developers for the Instagram callback.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Save the channel once to generate the dedicated callback URL.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setEditing(null)}>
@@ -413,6 +477,29 @@ export function ExternalChannelSettings({
                 </div>
                 {row.last_error && (
                   <p className="text-xs text-amber-400/80">Last error: {row.last_error}</p>
+                )}
+                {provider === 'instagram' && (
+                  <div className="flex gap-2 pt-1">
+                    <Input
+                      readOnly
+                      value={buildInstagramWebhookUrl(row.id, currentOrigin)}
+                      className="h-8 font-mono text-[11px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          buildInstagramWebhookUrl(row.id, currentOrigin),
+                        );
+                        toast.success('Webhook URL copied');
+                      }}
+                    >
+                      <Copy className="size-3.5" />
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
             </Card>
