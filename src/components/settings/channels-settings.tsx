@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsPanelHead } from './settings-panel-head';
 import { WhatsAppConfig } from './whatsapp-config';
+import { ExternalChannelSettings } from './external-channel-settings';
 
 interface ChannelRow {
   id: string;
@@ -79,124 +81,142 @@ export function ChannelsSettings() {
   return (
     <div className="space-y-6">
       <SettingsPanelHead
-        title="WhatsApp Channels"
-        description="Connect one or more WhatsApp Business numbers to this account. Each number is an independent inbox channel."
+        title="Inbox Channels"
+        description="Manage official Meta numbers and keep non-official inboxes separated by provider."
       />
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
-          <Loader2 className="size-5 animate-spin mr-2" />
-          Loading channels…
-        </div>
-      ) : (
-        <>
-          {channels.length === 0 ? (
-            <Card className="border-dashed border-border">
-              <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-                <Wifi className="size-10 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  No WhatsApp numbers connected yet.
-                </p>
-                <Button size="sm" onClick={() => setEditing('new')}>
+      <Tabs defaultValue="official" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="official">Official WhatsApp</TabsTrigger>
+          <TabsTrigger value="uazapi">UAZAPI</TabsTrigger>
+          <TabsTrigger value="instagram">Instagram</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="official" className="space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin mr-2" />
+              Loading channels…
+            </div>
+          ) : (
+            <>
+              {channels.length === 0 ? (
+                <Card className="border-dashed border-border">
+                  <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+                    <Wifi className="size-10 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      No WhatsApp numbers connected yet.
+                    </p>
+                    <Button size="sm" onClick={() => setEditing('new')}>
+                      <Plus className="size-4 mr-1.5" />
+                      Add number
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {channels.map((ch) => (
+                    <Card key={ch.id} className="border-border">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <CardTitle className="text-sm font-medium text-foreground">
+                              {ch.label || ch.phone_number_id}
+                            </CardTitle>
+                            {ch.label && (
+                              <CardDescription className="text-xs text-muted-foreground font-mono">
+                                {ch.phone_number_id}
+                              </CardDescription>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {ch.status === 'connected' && ch.registered_at ? (
+                              <Badge
+                                variant="outline"
+                                className="border-emerald-700/50 bg-emerald-950/30 text-emerald-400 text-xs"
+                              >
+                                <CheckCircle2 className="size-3 mr-1" />
+                                Live
+                              </Badge>
+                            ) : ch.status === 'connected' ? (
+                              <Badge
+                                variant="outline"
+                                className="border-amber-700/50 bg-amber-950/30 text-amber-400 text-xs"
+                              >
+                                <AlertTriangle className="size-3 mr-1" />
+                                Not registered
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-border text-muted-foreground text-xs"
+                              >
+                                Disconnected
+                              </Badge>
+                            )}
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => setEditing(ch.id)}
+                            >
+                              <Pencil className="size-3.5" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDelete(ch.id)}
+                              disabled={deletingId === ch.id}
+                            >
+                              {deletingId === ch.id ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="size-3.5" />
+                              )}
+                              <span className="sr-only">Remove</span>
+                            </Button>
+                          </div>
+                        </div>
+
+                        {ch.last_registration_error && (
+                          <p className="mt-2 text-xs text-amber-400/80 leading-relaxed">
+                            Registration error: {ch.last_registration_error}
+                          </p>
+                        )}
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {channels.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-border text-muted-foreground hover:text-foreground"
+                  onClick={() => setEditing('new')}
+                >
                   <Plus className="size-4 mr-1.5" />
                   Add number
                 </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {channels.map((ch) => (
-                <Card key={ch.id} className="border-border">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5">
-                        <CardTitle className="text-sm font-medium text-foreground">
-                          {ch.label || ch.phone_number_id}
-                        </CardTitle>
-                        {ch.label && (
-                          <CardDescription className="text-xs text-muted-foreground font-mono">
-                            {ch.phone_number_id}
-                          </CardDescription>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {ch.status === 'connected' && ch.registered_at ? (
-                          <Badge
-                            variant="outline"
-                            className="border-emerald-700/50 bg-emerald-950/30 text-emerald-400 text-xs"
-                          >
-                            <CheckCircle2 className="size-3 mr-1" />
-                            Live
-                          </Badge>
-                        ) : ch.status === 'connected' ? (
-                          <Badge
-                            variant="outline"
-                            className="border-amber-700/50 bg-amber-950/30 text-amber-400 text-xs"
-                          >
-                            <AlertTriangle className="size-3 mr-1" />
-                            Not registered
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="border-border text-muted-foreground text-xs"
-                          >
-                            Disconnected
-                          </Badge>
-                        )}
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-muted-foreground hover:text-foreground"
-                          onClick={() => setEditing(ch.id)}
-                        >
-                          <Pencil className="size-3.5" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(ch.id)}
-                          disabled={deletingId === ch.id}
-                        >
-                          {deletingId === ch.id ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="size-3.5" />
-                          )}
-                          <span className="sr-only">Remove</span>
-                        </Button>
-                      </div>
-                    </div>
-
-                    {ch.last_registration_error && (
-                      <p className="mt-2 text-xs text-amber-400/80 leading-relaxed">
-                        Registration error: {ch.last_registration_error}
-                      </p>
-                    )}
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
+              )}
+            </>
           )}
+        </TabsContent>
 
-          {channels.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-border text-muted-foreground hover:text-foreground"
-              onClick={() => setEditing('new')}
-            >
-              <Plus className="size-4 mr-1.5" />
-              Add number
-            </Button>
-          )}
-        </>
-      )}
+        <TabsContent value="uazapi">
+          <ExternalChannelSettings provider="uazapi" />
+        </TabsContent>
+
+        <TabsContent value="instagram">
+          <ExternalChannelSettings provider="instagram" />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

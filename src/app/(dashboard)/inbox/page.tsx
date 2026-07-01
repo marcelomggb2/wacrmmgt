@@ -8,6 +8,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
+import { NewConversationDialog } from "@/components/inbox/new-conversation-dialog";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ export default function InboxPage() {
     null
   );
   const [resyncToken, setResyncToken] = useState(0);
+  const [newConversationOpen, setNewConversationOpen] = useState(false);
 
   const [contactPanelOpen, setContactPanelOpen] = useState(true);
   useEffect(() => {
@@ -118,18 +120,30 @@ export default function InboxPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("whatsapp_config")
-        .select("status")
-        .eq("account_id", accountId);
+      const [{ data: official, error: officialError }, { data: external, error: externalError }] =
+        await Promise.all([
+          supabase
+            .from("whatsapp_config")
+            .select("status")
+            .eq("account_id", accountId),
+          supabase
+            .from("external_inbox_channels")
+            .select("status, provider")
+            .eq("account_id", accountId),
+        ]);
 
-      if (error) {
-        console.error("Failed to check WhatsApp connection:", error);
+      if (officialError || externalError) {
+        console.error("Failed to check inbox connection:", officialError || externalError);
         setWhatsappConnected(false);
         return;
       }
 
-      setWhatsappConnected((data ?? []).some((row) => row.status === "connected"));
+      setWhatsappConnected(
+        (official ?? []).some((row) => row.status === "connected") ||
+          (external ?? []).some(
+            (row) => row.provider === "uazapi" && row.status === "connected",
+          ),
+      );
     };
 
     checkConnection();
@@ -372,6 +386,26 @@ export default function InboxPage() {
     [activeConversation]
   );
 
+  const handleConversationCreated = useCallback(
+    (conversation: Conversation) => {
+      setConversations((prev) => {
+        const existing = prev.find((item) => item.id === conversation.id);
+        if (existing) {
+          return prev.map((item) =>
+            item.id === conversation.id ? conversation : item,
+          );
+        }
+        return [conversation, ...prev];
+      });
+      setActiveConversation(conversation);
+      setActiveContact(conversation.contact ?? null);
+      setMessages([]);
+      autoSelectedForDeepLinkRef.current = conversation.id;
+      router.replace(`/inbox?c=${conversation.id}`, { scroll: false });
+    },
+    [router],
+  );
+
   const hasActiveConv = !!activeConversation;
 
   return (
@@ -397,6 +431,7 @@ export default function InboxPage() {
             onSelect={handleSelectConversation}
             conversations={conversations}
             onConversationsLoaded={handleConversationsLoaded}
+            onStartConversation={() => setNewConversationOpen(true)}
             resyncToken={resyncToken}
           />
         </div>
@@ -430,6 +465,12 @@ export default function InboxPage() {
           </div>
         )}
       </div>
+
+      <NewConversationDialog
+        open={newConversationOpen}
+        onOpenChange={setNewConversationOpen}
+        onCreated={handleConversationCreated}
+      />
     </div>
   );
 }

@@ -47,12 +47,12 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Failed to send message";
     const status =
       /Unauthorized/i.test(message) ? 401 :
+      /required|Invalid|not found|not linked|missing|prepared/i.test(message) ? 400 :
       /Conversation not found/i.test(message) ? 404 :
-      /required|Invalid|configured|linked|missing|prepared/i.test(message) ? 400 :
       /Meta API/i.test(message) ? 502 :
       500;
 
-    console.error("[whatsapp/send POST] error:", error);
+    console.error("[inbox/send POST] error:", error);
     return NextResponse.json({ error: message }, { status });
   }
 }

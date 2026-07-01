@@ -105,6 +105,7 @@ export interface Contact {
 export interface Tag {
   id: string;
   user_id: string;
+  account_id?: string;
   name: string;
   color: string;
   created_at: string;
@@ -147,6 +148,7 @@ export type ConversationStatus = 'open' | 'pending' | 'closed';
 export interface Conversation {
   id: string;
   user_id: string;
+  account_id?: string;
   contact_id: string;
   status: ConversationStatus;
   assigned_agent_id?: string;
@@ -162,6 +164,8 @@ export interface Conversation {
    * before multi-channel was enabled.
    */
   whatsapp_config_id?: string | null;
+  channel_provider?: InboxChannelProvider | null;
+  external_channel_id?: string | null;
 }
 
 export type SenderType = 'customer' | 'agent' | 'bot';
@@ -239,6 +243,46 @@ export interface WhatsAppConfig {
   last_registration_error?: string;
 }
 
+export type ExternalInboxProvider = "uazapi" | "instagram";
+export type InboxChannelProvider = "whatsapp_official" | ExternalInboxProvider;
+export type ExternalInboxChannelStatus =
+  | "connected"
+  | "disconnected"
+  | "setup_pending"
+  | "error";
+
+export interface ExternalInboxChannel {
+  id: string;
+  account_id: string;
+  created_by?: string | null;
+  provider: ExternalInboxProvider;
+  label?: string | null;
+  status: ExternalInboxChannelStatus;
+  base_url?: string | null;
+  external_key?: string | null;
+  display_identifier?: string | null;
+  token_encrypted?: string | null;
+  webhook_secret_encrypted?: string | null;
+  settings?: Record<string, unknown>;
+  last_error?: string | null;
+  connected_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface InboxChannel {
+  id: string;
+  provider: InboxChannelProvider;
+  label: string;
+  status: string;
+  phone_number_id?: string | null;
+  display_identifier?: string | null;
+  official_config_id?: string | null;
+  external_channel_id?: string | null;
+  selectable: boolean;
+  last_error?: string | null;
+}
+
 // Raw Meta status enum. We persist this verbatim from Meta (sync + webhook)
 // rather than collapsing to a local TitleCase set — distinctions like
 // PAUSED vs DISABLED vs IN_APPEAL drive the edit/resubmit/delete flows.
@@ -267,6 +311,7 @@ export interface TemplateSampleValues {
 export interface MessageTemplate {
   id: string;
   user_id: string;
+  account_id?: string;
   name: string;
   category: 'Marketing' | 'Utility' | 'Authentication';
   language?: string;

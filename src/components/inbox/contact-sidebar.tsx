@@ -3,21 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/lib/utils";
 import type { Contact, Deal, ContactNote, Tag } from "@/types";
 import {
   Phone,
   Mail,
   Copy,
   Check,
-  User,
   Tag as TagIcon,
   DollarSign,
   StickyNote,
   Plus,
+  Loader2,
 } from "lucide-react";
+import { TagSelector } from "@/components/contacts/tag-selector";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useCan } from "@/hooks/use-can";
 import { format } from "date-fns";
 
 interface ContactSidebarProps {
@@ -26,10 +27,14 @@ interface ContactSidebarProps {
 
 export function ContactSidebar({ contact }: ContactSidebarProps) {
   const { accountId } = useAuth();
+  const canEdit = useCan("send-messages");
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [savingTags, setSavingTags] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
 
@@ -39,7 +44,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     const supabase = createClient();
 
     // Fetch deals, notes, and tags in parallel
-    const [dealsRes, notesRes, tagsRes] = await Promise.all([
+    const [dealsRes, notesRes, tagsRes, allTagsRes] = await Promise.all([
       supabase
         .from("deals")
         .select("*, stage:pipeline_stages(*)")
@@ -54,6 +59,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
         .from("contact_tags")
         .select("id, tag_id, tags(*)")
         .eq("contact_id", contact.id),
+      supabase.from("tags").select("*").order("name"),
     ]);
 
     if (dealsRes.data) setDeals(dealsRes.data);
@@ -66,7 +72,9 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
           contact_tag_id: ct.id as string,
         }));
       setTags(mapped);
+      setSelectedTagIds(mapped.map((tag) => tag.id));
     }
+    if (allTagsRes.data) setAllTags(allTagsRes.data as Tag[]);
   }, [contact]);
 
   // Load on contact change. setContactData/setTags run inside async
@@ -114,6 +122,39 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     }
     setAddingNote(false);
   }, [contact, newNote, accountId]);
+
+  const handleSaveTags = useCallback(async () => {
+    if (!contact || !canEdit) return;
+    setSavingTags(true);
+    const supabase = createClient();
+
+    const { error: deleteError } = await supabase
+      .from("contact_tags")
+      .delete()
+      .eq("contact_id", contact.id);
+
+    if (deleteError) {
+      setSavingTags(false);
+      return;
+    }
+
+    if (selectedTagIds.length > 0) {
+      const { error: insertError } = await supabase.from("contact_tags").insert(
+        selectedTagIds.map((tagId) => ({
+          contact_id: contact.id,
+          tag_id: tagId,
+        })),
+      );
+
+      if (insertError) {
+        setSavingTags(false);
+        return;
+      }
+    }
+
+    await fetchContactData();
+    setSavingTags(false);
+  }, [canEdit, contact, fetchContactData, selectedTagIds]);
 
   if (!contact) {
     return (
@@ -179,27 +220,36 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
 
           {/* Tags */}
           <div>
-            <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <TagIcon className="h-3 w-3" />
-              Tags
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {tags.length === 0 ? (
-                <p className="px-1 text-xs text-muted-foreground">No tags</p>
-              ) : (
-                tags.map((tag) => (
-                  <span
-                    key={tag.contact_tag_id}
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                    style={{
-                      backgroundColor: `${tag.color}20`,
-                      color: tag.color,
-                    }}
-                  >
-                    {tag.name}
-                  </span>
-                ))
+            <div className="flex items-center justify-between gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-2">
+                <TagIcon className="h-3 w-3" />
+                Tags
+              </span>
+              {canEdit && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[11px]"
+                  onClick={handleSaveTags}
+                  disabled={savingTags}
+                >
+                  {savingTags ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    "Save"
+                  )}
+                </Button>
               )}
+            </div>
+            <div className="mt-2">
+              <TagSelector
+                tags={allTags}
+                selectedTagIds={selectedTagIds}
+                onChange={setSelectedTagIds}
+                disabled={!canEdit || savingTags}
+                emptyText={tags.length === 0 ? "No tags" : "No tags available."}
+              />
             </div>
           </div>
 

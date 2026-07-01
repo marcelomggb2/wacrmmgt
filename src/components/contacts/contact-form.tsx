@@ -22,7 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { TagSelector } from '@/components/contacts/tag-selector';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface ContactFormProps {
@@ -77,7 +77,7 @@ export function ContactForm({
       setDupMatch(null);
       fetchTags();
     }
-  }, [open, contact]);
+  }, [open, contact, contactTags, fetchTags]);
 
   // Look up an existing contact with this number (new contacts only).
   // Runs on blur so we don't query on every keystroke.
@@ -109,14 +109,6 @@ export function ContactForm({
       .order('name');
     if (data) setTags(data);
     setLoadingTags(false);
-  }
-
-  function toggleTag(tagId: string) {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
-    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -326,41 +318,12 @@ export function ContactForm({
 
           <div className="space-y-2">
             <Label className="text-muted-foreground">Tags</Label>
-            {loadingTags ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Loader2 className="size-3 animate-spin" />
-                Loading tags...
-              </div>
-            ) : tags.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No tags available. Create tags in Settings.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((tag) => {
-                  const selected = selectedTagIds.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag.id)}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
-                        selected
-                          ? 'ring-2 ring-primary ring-offset-1 ring-offset-border'
-                          : 'opacity-60 hover:opacity-100'
-                      }`}
-                      style={{
-                        backgroundColor: tag.color + '20',
-                        color: tag.color,
-                        borderColor: tag.color,
-                      }}
-                    >
-                      {tag.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <TagSelector
+              tags={tags}
+              selectedTagIds={selectedTagIds}
+              onChange={setSelectedTagIds}
+              loading={loadingTags}
+            />
           </div>
 
           <DialogFooter className="bg-popover border-border">
