@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/flows/admin-client";
 import {
   summarizeInstagramWebhookPayload,
 } from "@/lib/inbox/instagram-webhook";
+import { ingestInstagramWebhookPayload } from "@/lib/inbox/instagram-leads";
 import {
   decrypt,
   encrypt,
@@ -58,6 +59,20 @@ async function markChannelConnected(
       updated_at: new Date().toISOString(),
       last_error: null,
       settings,
+    })
+    .eq("id", channelId);
+}
+
+async function markChannelError(channelId: string, error: unknown) {
+  const message =
+    error instanceof Error ? error.message : "Instagram webhook processing failed";
+
+  await supabaseAdmin()
+    .from("external_inbox_channels")
+    .update({
+      status: "error",
+      last_error: message,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", channelId);
 }
@@ -172,6 +187,19 @@ export async function POST(
       last_webhook_entry_time: summary.lastEntryTime,
     });
 
+    let ingestResult = null;
+    try {
+      ingestResult = await ingestInstagramWebhookPayload(
+        supabaseAdmin(),
+        channel,
+        payload,
+      );
+    } catch (error) {
+      console.error("[instagram/webhook POST] ingest error:", error);
+      await markChannelError(channelId, error);
+      throw error;
+    }
+
     return NextResponse.json({
       ok: true,
       received: {
@@ -179,6 +207,7 @@ export async function POST(
         entries: summary.entryCount,
         fields: summary.changedFields,
       },
+      processed: ingestResult,
     });
   } catch (error) {
     console.error("[instagram/webhook POST] error:", error);

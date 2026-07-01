@@ -59,7 +59,7 @@ function providerMeta(provider: 'uazapi' | 'instagram') {
   return {
     title: 'Instagram inbox',
     description:
-      'Save the Instagram inbox setup now. Sending and webhooks stay disabled until the Graph integration is completed.',
+      'Connect Instagram comments and DMs through Meta Graph while keeping WhatsApp channels separated.',
     addLabel: 'Prepare Instagram channel',
   };
 }
@@ -227,7 +227,7 @@ export function ExternalChannelSettings({
           <CardDescription className="text-muted-foreground">
             {provider === 'uazapi'
               ? 'Keep this connection separate from your official Meta inboxes.'
-              : 'This stores the Instagram configuration only. Real-time events stay disabled for now.'}
+              : 'Use the generated callback URL in Meta Developers. Comment keyword automation runs after the webhook is verified.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

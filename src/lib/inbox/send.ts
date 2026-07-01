@@ -15,6 +15,7 @@ import {
   sendUazapiMediaMessage,
   sendUazapiTextMessage,
 } from "@/lib/inbox/uazapi";
+import { sendInstagramDirectMessage } from "@/lib/inbox/instagram-graph";
 import {
   decrypt,
   encrypt,
@@ -33,7 +34,7 @@ import {
   sanitizePhoneForMeta,
 } from "@/lib/whatsapp/phone-utils";
 import { isMessageTemplate } from "@/lib/whatsapp/template-row-guard";
-import type { MessageTemplate } from "@/types";
+import type { InboxChannelProvider, MessageTemplate } from "@/types";
 
 type SupabaseAny = SupabaseClient;
 
@@ -58,7 +59,7 @@ export interface SendConversationMessageResult {
   success: true;
   messageId: string;
   providerMessageId: string | null;
-  provider: "whatsapp_official" | "uazapi";
+  provider: "whatsapp_official" | "uazapi" | "instagram";
 }
 
 async function lookupReplyContextMessageId(
@@ -127,6 +128,7 @@ async function updateConversationAfterSend(
   update: {
     whatsappConfigId?: string | null;
     externalChannelId?: string | null;
+    channelProvider?: InboxChannelProvider;
   } = {},
 ): Promise<void> {
   const { error } = await supabase
@@ -138,9 +140,10 @@ async function updateConversationAfterSend(
       whatsapp_config_id: update.whatsappConfigId ?? null,
       external_channel_id: update.externalChannelId ?? null,
       channel_provider:
-        update.externalChannelId && !update.whatsappConfigId
+        update.channelProvider ??
+        (update.externalChannelId && !update.whatsappConfigId
           ? "uazapi"
-          : "whatsapp_official",
+          : "whatsapp_official"),
     })
     .eq("id", input.conversationId);
 
@@ -422,6 +425,90 @@ function channelWithToken(
   };
 }
 
+async function sendInstagramConversationMessage(
+  supabase: SupabaseAny,
+  accountId: string,
+  input: SendConversationMessageInput,
+): Promise<SendConversationMessageResult> {
+  if (input.messageType !== "text") {
+    throw new Error("Instagram inbox currently supports text replies only.");
+  }
+
+  const conversation = await loadConversationForSend(
+    supabase,
+    accountId,
+    input.conversationId,
+  );
+
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  if (!conversation.external_channel_id) {
+    throw new Error("This conversation is not linked to an Instagram channel.");
+  }
+
+  const channel = await loadExternalChannel(
+    supabase,
+    accountId,
+    conversation.external_channel_id,
+  );
+
+  if (!channel || channel.provider !== "instagram") {
+    throw new Error("Instagram channel not found");
+  }
+
+  const { data: session, error: sessionError } = await supabase
+    .from("instagram_lead_sessions")
+    .select("ig_scoped_user_id")
+    .eq("account_id", accountId)
+    .eq("external_channel_id", channel.id)
+    .eq("conversation_id", conversation.id)
+    .not("ig_scoped_user_id", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (sessionError) throw sessionError;
+
+  const igScopedUserId =
+    typeof session?.ig_scoped_user_id === "string"
+      ? session.ig_scoped_user_id
+      : null;
+
+  if (!igScopedUserId) {
+    throw new Error("Instagram recipient ID is missing for this conversation.");
+  }
+
+  const result = await sendInstagramDirectMessage(
+    channel,
+    igScopedUserId,
+    input.contentText || "",
+  );
+
+  const messageId = await insertSentMessage(
+    supabase,
+    input,
+    result.messageId,
+  );
+
+  await updateConversationAfterSend(supabase, input, {
+    externalChannelId: channel.id,
+    channelProvider: "instagram",
+  });
+
+  if (conversation.contact_id) {
+    await pauseActiveFlows(supabaseAdmin(), accountId, conversation.contact_id);
+  }
+
+  return {
+    success: true,
+    messageId,
+    providerMessageId: result.messageId,
+    provider: "instagram",
+  };
+}
+
 export async function sendConversationMessage(
   supabase: SupabaseAny,
   accountId: string,
@@ -462,9 +549,7 @@ export async function sendConversationMessage(
   const { provider } = resolveConversationChannelIds(conversation);
 
   if (provider === "instagram") {
-    throw new Error(
-      "Instagram inbox is prepared in Settings, but sending is not enabled yet.",
-    );
+    return sendInstagramConversationMessage(supabase, accountId, input);
   }
 
   if (provider === "uazapi") {
