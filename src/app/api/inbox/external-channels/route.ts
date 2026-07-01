@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { normalizeUazapiBaseUrl } from "@/lib/inbox/uazapi";
 import { encrypt } from "@/lib/whatsapp/encryption";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAuthAccountContext } from "@/lib/inbox/service";
@@ -72,8 +73,12 @@ export async function POST(request: Request) {
         provider === "instagram"
           ? "setup_pending"
           : body.status || "disconnected",
-      base_url: body.base_url?.trim() || null,
-      external_key: body.external_key?.trim() || null,
+      base_url:
+        provider === "uazapi"
+          ? normalizeUazapiBaseUrl(body.base_url)
+          : body.base_url?.trim() || null,
+      external_key:
+        provider === "uazapi" ? null : body.external_key?.trim() || null,
       display_identifier: body.display_identifier?.trim() || null,
       settings:
         body.settings && typeof body.settings === "object" ? body.settings : {},

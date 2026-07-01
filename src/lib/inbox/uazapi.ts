@@ -14,6 +14,14 @@ type UazapiTextResponse = {
   raw: unknown;
 };
 
+const DEFAULT_UAZAPI_BASE_URL = "https://api.uazapi.com";
+const DEFAULT_UAZAPI_SSE_EVENTS = ["messages"] as const;
+const DEFAULT_UAZAPI_SSE_EXCLUDE_MESSAGES = [
+  "wasSentByApi",
+  "fromMeYes",
+  "isGroupYes",
+] as const;
+
 export interface NormalizedUazapiWebhookMessage {
   providerMessageId: string | null;
   phone: string;
@@ -30,6 +38,25 @@ export interface NormalizedUazapiWebhookMessage {
 
 function trimTrailingSlashes(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+export function normalizeUazapiBaseUrl(value?: string | null): string {
+  const trimmed = trimTrailingSlashes((value || "").trim());
+
+  if (!trimmed) {
+    return DEFAULT_UAZAPI_BASE_URL;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const withoutLeadingSlashes = trimmed.replace(/^\/+/, "");
+  if (withoutLeadingSlashes.includes(".")) {
+    return `https://${withoutLeadingSlashes}`;
+  }
+
+  return `https://${withoutLeadingSlashes}.uazapi.com`;
 }
 
 function ensureJsonHeaders(token: string): HeadersInit {
@@ -160,10 +187,7 @@ async function uazapiRequest<T>(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const url = new URL(pathname, `${trimTrailingSlashes(channel.base_url || "")}/`);
-    if (channel.external_key) {
-      url.searchParams.set("instanceKey", channel.external_key);
-    }
+    const url = new URL(pathname, `${normalizeUazapiBaseUrl(channel.base_url)}/`);
 
     const response = await fetchImpl(url, {
       method: options.method ?? (options.body ? "POST" : "GET"),
@@ -188,6 +212,27 @@ async function uazapiRequest<T>(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function buildUazapiSseUrl(
+  channel: Pick<ExternalInboxChannel, "base_url"> & { token: string },
+  options: {
+    events?: readonly string[];
+    excludeMessages?: readonly string[];
+  } = {},
+): URL {
+  const url = new URL("/sse", `${normalizeUazapiBaseUrl(channel.base_url)}/`);
+  url.searchParams.set("token", channel.token);
+  url.searchParams.set(
+    "events",
+    (options.events ?? DEFAULT_UAZAPI_SSE_EVENTS).join(","),
+  );
+  const excludeMessages =
+    options.excludeMessages ?? DEFAULT_UAZAPI_SSE_EXCLUDE_MESSAGES;
+  if (excludeMessages.length > 0) {
+    url.searchParams.set("excludeMessages", excludeMessages.join(","));
+  }
+  return url;
 }
 
 export async function fetchUazapiStatus(
@@ -263,10 +308,10 @@ export async function sendUazapiMediaMessage(
       method: "POST",
       body: {
         number: payload.number,
-        fileUrl: payload.url,
+        file: payload.url,
         type: payload.type,
         text: payload.caption,
-        fileName: payload.fileName,
+        docName: payload.fileName,
         track_source: "wacrm",
       },
       fetchImpl,

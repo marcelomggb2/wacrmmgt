@@ -51,7 +51,7 @@ function providerMeta(provider: 'uazapi' | 'instagram') {
     return {
       title: 'UAZAPI inbox',
       description:
-        'Connect a non-official WhatsApp inbox without mixing it with your official Meta channels.',
+        'Connect a non-official WhatsApp inbox with token auth and SSE events, separated from Meta channels.',
       addLabel: 'Add UAZAPI channel',
     };
   }
@@ -168,7 +168,7 @@ export function ExternalChannelSettings({
               page_id: instagramPageId.trim() || null,
               instagram_account_id: instagramAccountId.trim() || null,
             }
-          : {};
+          : { inbound_transport: 'sse' };
 
       const res = await fetch('/api/inbox/external-channels', {
         method: 'POST',
@@ -178,10 +178,11 @@ export function ExternalChannelSettings({
           provider,
           label,
           base_url: provider === 'uazapi' ? baseUrl : undefined,
-          external_key: externalKey,
+          external_key: provider === 'uazapi' ? undefined : externalKey,
           display_identifier: displayIdentifier,
           token: token.trim() || undefined,
-          webhook_secret: webhookSecret.trim() || undefined,
+          webhook_secret:
+            provider === 'instagram' ? webhookSecret.trim() || undefined : undefined,
           settings,
         }),
       });
@@ -238,16 +239,12 @@ export function ExternalChannelSettings({
           {provider === 'uazapi' ? (
             <>
               <div className="space-y-2">
-                <Label>Base URL</Label>
+                <Label>UAZAPI server or subdomain</Label>
                 <Input
-                  placeholder="https://example.uazapi.com"
+                  placeholder="api, free, or https://api.uazapi.com"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Instance key</Label>
-                <Input value={externalKey} onChange={(e) => setExternalKey(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Display identifier</Label>
@@ -300,34 +297,34 @@ export function ExternalChannelSettings({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>
-              {provider === 'instagram'
-                ? currentRow?.has_webhook_secret
+          {provider === 'uazapi' && (
+            <p className="text-xs text-muted-foreground">
+              Incoming messages are read through UAZAPI SSE using the saved token; no UAZAPI webhook secret is needed.
+            </p>
+          )}
+
+          {provider === 'instagram' && (
+            <div className="space-y-2">
+              <Label>
+                {currentRow?.has_webhook_secret
                   ? 'Replace verify token'
-                  : 'Verify token'
-                : currentRow?.has_webhook_secret
-                  ? 'Replace webhook secret'
-                  : 'Webhook secret'}
-            </Label>
-            <Input
-              type="password"
-              placeholder={
-                currentRow?.has_webhook_secret
-                  ? 'Leave blank to keep current secret'
-                  : provider === 'instagram'
-                    ? 'Create the same token you will paste into Meta Developers'
-                    : 'Optional'
-              }
-              value={webhookSecret}
-              onChange={(e) => setWebhookSecret(e.target.value)}
-            />
-            {provider === 'instagram' && (
+                  : 'Verify token'}
+              </Label>
+              <Input
+                type="password"
+                placeholder={
+                  currentRow?.has_webhook_secret
+                    ? 'Leave blank to keep current secret'
+                    : 'Create the same token you will paste into Meta Developers'
+                }
+                value={webhookSecret}
+                onChange={(e) => setWebhookSecret(e.target.value)}
+              />
               <p className="text-xs text-muted-foreground">
                 Meta sends this value back as <code>hub.verify_token</code> during webhook verification.
               </p>
-            )}
-          </div>
+            </div>
+          )}
 
           {provider === 'instagram' && (
             <div className="space-y-2">

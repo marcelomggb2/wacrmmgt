@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Conversation, Message, Contact, ConversationStatus } from "@/types";
 import { useRealtime } from "@/hooks/use-realtime";
+import { useUazapiSseBridge } from "@/hooks/use-uazapi-sse-bridge";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
@@ -278,6 +279,11 @@ export default function InboxPage() {
   const handleManualRefresh = useCallback(() => {
     setResyncToken((n) => n + 1);
   }, []);
+
+  useUazapiSseBridge({
+    enabled: true,
+    onSynced: handleManualRefresh,
+  });
 
   const handleConversationsLoaded = useCallback(
     (loaded: Conversation[]) => {
