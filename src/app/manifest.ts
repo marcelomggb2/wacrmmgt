@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "MG Team Mobile",
-    short_name: "MG Mobile",
-    description: "Inbox mobile para WhatsApp, Instagram, leads e agenda.",
-    start_url: "/mobile",
+    name: "MG Team WACRM",
+    short_name: "WACRM",
+    description: "Inbox e CRM para WhatsApp, Instagram e funis de vendas.",
+    start_url: "/inbox",
     scope: "/",
     display: "standalone",
     background_color: "#020617",
