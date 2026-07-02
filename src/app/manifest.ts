@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "MG Team Mobile",
     short_name: "MG Mobile",
     description: "Inbox mobile para WhatsApp, Instagram, leads e agenda.",
-    start_url: "/app",
+    start_url: "/mobile",
     scope: "/",
     display: "standalone",
     background_color: "#020617",

@@ -43,16 +43,6 @@ function LoginPageInner() {
   const router = useRouter();
   const supabase = createClient();
 
-  const getPostLoginPath = () => {
-    if (typeof window === "undefined") return "/dashboard";
-
-    const hostname = window.location.hostname;
-    const isMobileHost =
-      hostname === "mobile.mgteamoficial.site" || hostname.startsWith("mobile.");
-
-    return isMobileHost ? "/app" : "/dashboard";
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -72,7 +62,7 @@ function LoginPageInner() {
     if (inviteToken) {
       router.push(`/join/${encodeURIComponent(inviteToken)}`);
     } else {
-      router.push(getPostLoginPath());
+      router.push("/dashboard");
     }
   };
 

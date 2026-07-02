@@ -7,13 +7,7 @@ export async function middleware(request: NextRequest) {
 
   if (isMobileHost && request.nextUrl.pathname === '/') {
     const url = request.nextUrl.clone()
-    url.pathname = '/app'
-    return NextResponse.redirect(url)
-  }
-
-  if (request.nextUrl.pathname === '/mobile') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/app'
+    url.pathname = '/mobile'
     return NextResponse.redirect(url)
   }
 
@@ -61,14 +55,14 @@ export async function middleware(request: NextRequest) {
       url.pathname = `/join/${encodeURIComponent(inviteToken)}`
       url.search = ''
     } else {
-      url.pathname = isMobileHost ? '/app' : '/dashboard'
+      url.pathname = isMobileHost ? '/mobile' : '/dashboard'
       url.search = ''
     }
     return NextResponse.redirect(url)
   }
 
   // Protected pages - redirect to login if not authenticated
-  const protectedPaths = ['/dashboard', '/app', '/inbox', '/contacts', '/pipelines', '/broadcasts', '/automations', '/settings']
+  const protectedPaths = ['/dashboard', '/mobile', '/inbox', '/contacts', '/pipelines', '/broadcasts', '/automations', '/settings']
   if (!user && protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
