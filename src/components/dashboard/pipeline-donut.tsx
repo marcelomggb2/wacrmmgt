@@ -15,8 +15,8 @@ interface PipelineDonutProps {
 
 export function PipelineDonut({ data, loading, currency }: PipelineDonutProps) {
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border bg-card">
-      <header className="border-b border-border px-5 py-4">
+    <section className="flex h-full flex-col rounded-2xl border border-border/70 bg-card shadow-sm">
+      <header className="border-b border-border/70 px-5 py-4">
         <h2 className="text-sm font-semibold text-foreground">Pipeline Value</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Open deals by stage
@@ -37,7 +37,10 @@ export function PipelineDonut({ data, loading, currency }: PipelineDonutProps) {
             <Donut data={data} currency={currency} />
             <ul className="mt-5 space-y-2">
               {data.stages.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 text-xs">
+                <li
+                  key={s.id}
+                  className="flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-2 text-xs"
+                >
                   <span
                     className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
                     style={{ background: s.color }}

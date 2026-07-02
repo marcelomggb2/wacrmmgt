@@ -1,0 +1,74 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run start
+    env_file:
+      - path: .env.vps
+        required: false
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_APP_ORIGIN: http://app:3000
+      WACRM_PROCESS_ROLE: app
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - wacrm-internal
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run worker:messages
+    env_file:
+      - path: .env.vps
+        required: false
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_APP_ORIGIN: http://app:3000
+      INTERNAL_WORKER_ENDPOINT: http://app:3000/api/internal/workers/messages
+      WACRM_PROCESS_ROLE: worker
+      MESSAGE_QUEUE_NAMES: meta:webhooks,instagram:webhooks,whatsapp:webhooks
+      MESSAGE_DEAD_LETTER_QUEUE: meta:webhooks:dead
+    depends_on:
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      - wacrm-internal
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1000"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - wacrm-internal
+    restart: unless-stopped
+
+networks:
+  wacrm-internal:
+    driver: bridge
+
+volumes:
+  redis-data:

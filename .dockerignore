@@ -1,0 +1,16 @@
+.git
+.github
+.next
+.vercel
+coverage
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.vps.example
+tsconfig.tsbuildinfo
