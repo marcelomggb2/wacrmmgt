@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient(request);
     const context = await resolveAuthAccountContext(supabase);
 
     if (!context) {

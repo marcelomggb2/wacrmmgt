@@ -1,0 +1,42 @@
+{
+  "name": "wacrm-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "web": "expo start --web",
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "latest",
+    "@react-native-async-storage/async-storage": "latest",
+    "@supabase/supabase-js": "latest",
+    "expo": "latest",
+    "expo-constants": "latest",
+    "expo-device": "latest",
+    "expo-linking": "latest",
+    "expo-notifications": "latest",
+    "expo-router": "latest",
+    "expo-secure-store": "latest",
+    "expo-status-bar": "latest",
+    "react": "latest",
+    "react-native": "latest",
+    "react-native-gesture-handler": "latest",
+    "react-native-reanimated": "latest",
+    "react-native-safe-area-context": "latest",
+    "react-native-screens": "latest",
+    "react-native-url-polyfill": "latest",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "eslint": "latest",
+    "eslint-config-expo": "latest",
+    "babel-plugin-module-resolver": "latest",
+    "typescript": "latest"
+  }
+}
