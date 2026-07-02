@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemedToaster } from "@/components/themed-toaster";
+import { PwaServiceWorker } from "@/components/pwa-service-worker";
 import {
   DEFAULT_MODE,
   DEFAULT_THEME,
@@ -19,17 +20,25 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  applicationName: "MG Team WACRM",
+  manifest: "/manifest.webmanifest",
   title: {
-    default: "wacrm",
-    template: "%s — wacrm",
+    default: "MG Team WACRM",
+    template: "%s — MG Team WACRM",
   },
-  description: "Self-hostable CRM template for WhatsApp.",
+  description: "Inbox e CRM para WhatsApp, Instagram e funis de vendas.",
   robots: {
     index: false,
     follow: false,
   },
   icons: {
     icon: [{ url: "/icon" }],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "WACRM",
+    statusBarStyle: "black-translucent",
   },
   formatDetection: {
     email: false,
@@ -104,6 +113,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-background text-foreground font-sans">
         <ThemeProvider>
+          <PwaServiceWorker />
           {children}
           <ThemedToaster />
         </ThemeProvider>
