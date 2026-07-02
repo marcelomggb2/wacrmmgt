@@ -29,6 +29,7 @@ interface ContactSeed {
   name?: string | null;
   phone: string;
   email?: string | null;
+  preserveExistingName?: boolean;
 }
 
 interface ConversationSeed {
@@ -165,14 +166,17 @@ export async function findOrCreateContact(
   if (existing) {
     const nextName = seed.name?.trim();
     const nextEmail = seed.email?.trim();
+    const existingName = existing.name?.trim() ?? "";
+    const shouldUpdateName =
+      Boolean(nextName) && (!seed.preserveExistingName || !existingName);
     if (
-      (nextName && nextName !== existing.name) ||
+      (shouldUpdateName && nextName !== existing.name) ||
       (nextEmail && nextEmail !== existing.email)
     ) {
       await supabase
         .from("contacts")
         .update({
-          name: nextName || existing.name || null,
+          name: shouldUpdateName ? nextName : existing.name || null,
           email: nextEmail || existing.email || null,
           updated_at: new Date().toISOString(),
         })

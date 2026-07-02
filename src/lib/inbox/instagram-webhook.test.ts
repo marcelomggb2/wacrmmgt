@@ -111,6 +111,12 @@ describe("Instagram webhook extraction", () => {
     expect(extractBrazilianWhatsapp("+55 21 98888-7777")).toBe(
       "5521988887777",
     );
+    expect(extractBrazilianWhatsapp("manda no 11 9 9999 9999")).toBe(
+      "5511999999999",
+    );
+    expect(extractBrazilianWhatsapp("zap: (11) 9 9999-9999")).toBe(
+      "5511999999999",
+    );
   });
 });
 

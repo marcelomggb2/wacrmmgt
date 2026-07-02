@@ -584,6 +584,7 @@ async function qualifySession(
     userId,
     phone,
     name: session.ig_username ? `@${session.ig_username}` : "Instagram lead",
+    preserveExistingName: true,
   });
 
   await ensureContactTagsByName(

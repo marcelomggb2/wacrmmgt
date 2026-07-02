@@ -219,7 +219,7 @@ export function extractInstagramMessageEvents(
 
 export function extractBrazilianWhatsapp(input: string): string | null {
   const candidates =
-    input.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)9?\d{4}[-\s]?\d{4}/g) ??
+    input.match(/(?:\+?55\D*)?(?:\(?\d{2}\)?\D*)9?\D*\d{4}\D*\d{4}/g) ??
     [];
 
   for (const candidate of candidates) {
