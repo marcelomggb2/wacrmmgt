@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import {
-  AppWindow,
   Crown,
   GitBranch,
   KanbanSquare,
@@ -92,7 +91,6 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/inbox", label: "Inbox", icon: MessageSquare },
   { href: "/boards", label: "Boards", icon: KanbanSquare },
-  { href: "/trelloflow", label: "TrelloFlow", icon: AppWindow },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/pipelines", label: "Pipelines", icon: GitBranch },
   { href: "/broadcasts", label: "Broadcasts", icon: Radio },
@@ -101,8 +99,8 @@ const navItems: NavItem[] = [
 ];
 
 const navSections = [
-  { label: "Workspace", items: navItems.slice(0, 6) },
-  { label: "Operations", items: navItems.slice(6) },
+  { label: "Workspace", items: navItems.slice(0, 5) },
+  { label: "Operations", items: navItems.slice(5) },
 ];
 
 const bottomNavItems = [

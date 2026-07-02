@@ -1,5 +1,8 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createClient } = require('@supabase/supabase-js');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path');
 
 // Caminho do .env.local no projeto wacrm
@@ -51,7 +54,7 @@ async function run() {
   console.log("Limpando a tabela whatsapp_config...");
   
   // Realiza o delete de todas as linhas de whatsapp_config
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('whatsapp_config')
     .delete()
     .neq('phone_number_id', 'delete-all-force-hack-1234'); // neq garante que bate em tudo sem gte/lte chatos do postgrest se n tiver índice

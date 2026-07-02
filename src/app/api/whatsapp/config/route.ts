@@ -159,7 +159,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    let { phone_number_id, waba_id, access_token, verify_token, pin, label } = body
+    const { phone_number_id, waba_id, pin, label } = body
+    let { access_token, verify_token } = body
 
     if (access_token && typeof access_token === 'string') {
       access_token = access_token.replace(/[\s\u2028\u2029\u200B-\u200D\uFEFF]/g, '').trim()
